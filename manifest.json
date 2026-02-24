@@ -1,0 +1,25 @@
+
+{
+  "name": "Jigsaw Swap Puzzle",
+  "short_name": "SwapPuzzle",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#4A90E2",
+  "description": "A fun and addictive jigsaw swap puzzle game.",
+  "icons": [
+    {
+      "src": "https://picsum.photos/id/10/192/192",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://picsum.photos/id/10/512/512",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+Pressing key...Clicking...Stopping...
+
+Stop Agent
