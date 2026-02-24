@@ -1,0 +1,428 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jigsaw Swap Puzzle - Levels</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4A90E2">
+    <link rel="apple-touch-icon" href="https://picsum.photos/id/10/192/192">
+    <style>
+        :root {
+            --primary: #4A90E2;
+            --bg-color: #121212;
+            --text-color: #ffffff;
+            --board-size: 300px;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            margin-bottom: 5px;
+            font-size: 2rem;
+            text-align: center;
+        }
+
+        h2.level-title {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #4CAF50;
+            font-size: 1.2rem;
+        }
+
+        .stats {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        .board {
+            width: 90vw;
+            max-width: 400px;
+            height: 90vw;
+            max-height: 400px;
+            background-color: #333;
+            border: 4px solid #444;
+            border-radius: 8px;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        .tile {
+            position: absolute;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-sizing: border-box;
+            cursor: pointer;
+            transition: top 0.3s ease, left 0.3s ease, border 0.1s;
+            border-radius: 4px;
+        }
+
+        .tile:hover {
+            opacity: 0.85;
+            z-index: 10;
+        }
+
+        .controls {
+            margin-top: 30px;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            margin: 0 5px;
+        }
+
+        button:hover {
+            background-color: #357ABD;
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-success {
+            background-color: #4CAF50;
+        }
+
+        .btn-success:hover {
+            background-color: #45a049;
+        }
+
+        /* Win Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .modal.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-content {
+            background-color: #222;
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            0% {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .modal h2 {
+            margin-top: 0;
+            color: #4CAF50;
+            font-size: 2.5rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Jigsaw Swap Puzzle</h1>
+    <h2 class="level-title" id="level-display">Level 1 (3x3)</h2>
+
+    <div class="stats">
+        <span>Moves: <span id="moves">0</span></span>
+        <span>Time: <span id="time">00:00</span></span>
+    </div>
+
+    <div class="board" id="board">
+        <!-- Tiles dynamically injected -->
+    </div>
+
+    <div class="controls">
+        <button id="restart-btn">Restart Level</button>
+    </div>
+
+    <div class="modal" id="win-modal">
+        <div class="modal-content">
+            <h2>Level Cleared!</h2>
+            <p>Solved in <span id="final-moves"></span> moves and <span id="final-time"></span>.</p>
+            <div style="margin-top: 20px;">
+                <button id="play-again-btn">Replay Level</button>
+                <button id="next-level-btn" class="btn-success">Next Level &rarr;</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const board = document.getElementById('board');
+        const levelDisplay = document.getElementById('level-display');
+        const movesEl = document.getElementById('moves');
+        const timeEl = document.getElementById('time');
+        const restartBtn = document.getElementById('restart-btn');
+        const playAgainBtn = document.getElementById('play-again-btn');
+        const nextLevelBtn = document.getElementById('next-level-btn');
+        const winModal = document.getElementById('win-modal');
+        const finalMovesEl = document.getElementById('final-moves');
+        const finalTimeEl = document.getElementById('final-time');
+
+        let currentLevel = 1;
+        let SIZE = 3;
+
+        let tiles = [];
+        let moves = 0;
+        let timer = null;
+        let seconds = 0;
+        let isPlaying = false;
+        let isWon = false;
+        let selectedTileIndex = -1; // -1 means no tile is selected
+        let imageUrl = '';
+
+        function initLevel(level) {
+            currentLevel = level;
+            // Level 1: 3x3, Level 2: 4x4, Level 3: 5x5...
+            SIZE = 2 + currentLevel;
+            levelDisplay.innerText = `Level ${currentLevel} (${SIZE}x${SIZE})`;
+
+            // Generate a different image per level based on Picsum ID + random offset so it doesn't get stale
+            // We use a fixed base per level so restarting the level keeps the same image
+            imageUrl = `https://picsum.photos/id/${10 + currentLevel * 5}/600/600`;
+
+            init();
+        }
+
+        function init() {
+            createTiles();
+            shuffleBoard();
+            renderBoard();
+            resetStats();
+        }
+
+        // Initialize tile data and HTML elements
+        function createTiles() {
+            board.innerHTML = '';
+            tiles = [];
+            selectedTileIndex = -1;
+
+            for (let i = 0; i < SIZE * SIZE; i++) {
+                const correctRow = Math.floor(i / SIZE);
+                const correctCol = i % SIZE;
+
+                const tileEl = document.createElement('div');
+                tileEl.classList.add('tile');
+
+                // Set dynamic sizes per grid size
+                tileEl.style.width = `${(100 / SIZE).toFixed(4)}%`;
+                tileEl.style.height = `${(100 / SIZE).toFixed(4)}%`;
+
+                // Set image
+                tileEl.style.backgroundImage = `url('${imageUrl}')`;
+                tileEl.style.backgroundSize = `${SIZE * 100}% ${SIZE * 100}%`;
+
+                // Cut image into grid using backgroundPosition
+                tileEl.style.backgroundPosition = `-${correctCol * 100}% -${correctRow * 100}%`;
+
+                // Add click listener
+                tileEl.addEventListener('click', () => handleTileClick(i));
+
+                tiles.push({
+                    correctPos: i,
+                    currentPos: i,
+                    el: tileEl
+                });
+
+                board.appendChild(tileEl);
+            }
+        }
+
+        // Shuffle by randomly swapping all tiles
+        function shuffleBoard() {
+            for (let i = tiles.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+
+                // Swap current positions
+                const tempPos = tiles[i].currentPos;
+                tiles[i].currentPos = tiles[j].currentPos;
+                tiles[j].currentPos = tempPos;
+            }
+        }
+
+        function updateTilePositions() {
+            tiles.forEach(tile => {
+                const row = Math.floor(tile.currentPos / SIZE);
+                const col = tile.currentPos % SIZE;
+
+                tile.el.style.left = `${(col / SIZE * 100).toFixed(4)}%`;
+                tile.el.style.top = `${(row / SIZE * 100).toFixed(4)}%`;
+
+                // Update styling based on state
+                const isLocked = tile.currentPos === tile.correctPos;
+
+                if (isLocked) {
+                    tile.el.style.border = 'none'; // Merge visually
+                    tile.el.style.zIndex = '5';
+                    tile.el.style.cursor = 'default';
+                } else if (tile.correctPos === selectedTileIndex) {
+                    tile.el.style.border = '4px solid #FFD700'; // Gold border for selected
+                    tile.el.style.zIndex = '20';
+                    tile.el.style.cursor = 'pointer';
+                } else {
+                    tile.el.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+                    tile.el.style.zIndex = '1';
+                    tile.el.style.cursor = 'pointer';
+                }
+            });
+        }
+
+        function renderBoard() {
+            updateTilePositions();
+        }
+
+        // Action when user clicks tile
+        function handleTileClick(correctPosIndex) {
+            if (isWon) return;
+
+            const targetTile = tiles.find(t => t.correctPos === correctPosIndex);
+
+            // If the piece is correctly placed, it acts as a solid piece and cannot be moved
+            if (targetTile.currentPos === targetTile.correctPos) return;
+
+            if (!isPlaying) {
+                startTimer();
+            }
+
+            if (selectedTileIndex === -1) {
+                // Select the first tile
+                selectedTileIndex = correctPosIndex;
+                updateTilePositions();
+            } else {
+                // If clicked the same tile, deselect it
+                if (selectedTileIndex === correctPosIndex) {
+                    selectedTileIndex = -1;
+                    updateTilePositions();
+                    return;
+                }
+
+                // Swap the two selected tiles
+                const tile1 = tiles.find(t => t.correctPos === selectedTileIndex);
+                const tile2 = targetTile;
+
+                const tempPos = tile1.currentPos;
+                tile1.currentPos = tile2.currentPos;
+                tile2.currentPos = tempPos;
+
+                selectedTileIndex = -1; // Deselect after swap
+
+                moves++;
+                movesEl.innerText = moves;
+
+                updateTilePositions();
+                checkWin();
+            }
+        }
+
+        function checkWin() {
+            const won = tiles.every(t => t.currentPos === t.correctPos);
+
+            if (won) {
+                isWon = true;
+                stopTimer();
+                showWinModal();
+            }
+        }
+
+        function showWinModal() {
+            finalMovesEl.innerText = moves;
+            finalTimeEl.innerText = timeEl.innerText;
+            winModal.classList.add('show');
+        }
+
+        function hideWinModal() {
+            winModal.classList.remove('show');
+        }
+
+        function resetStats() {
+            stopTimer();
+            moves = 0;
+            seconds = 0;
+            movesEl.innerText = moves;
+            timeEl.innerText = "00:00";
+            isPlaying = false;
+            isWon = false;
+            hideWinModal();
+        }
+
+        function startTimer() {
+            isPlaying = true;
+            timer = setInterval(() => {
+                seconds++;
+                const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+                const secs = (seconds % 60).toString().padStart(2, '0');
+                timeEl.innerText = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timer) clearInterval(timer);
+            timer = null;
+        }
+
+        restartBtn.addEventListener('click', () => initLevel(currentLevel));
+        playAgainBtn.addEventListener('click', () => initLevel(currentLevel));
+        nextLevelBtn.addEventListener('click', () => initLevel(currentLevel + 1));
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .catch(() => { });
+            });
+        }
+
+        // Start 
+        window.onload = () => initLevel(1);
+
+    </script>
+</body>
+
+</html>
+Pressing key...Getting DOM...Stopping...
+
+Stop Agent
